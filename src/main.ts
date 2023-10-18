@@ -24,11 +24,17 @@ let currentCommand: LineCommand | null = null;
 
 let cursorActive = false;
 
+// let currentThickness = 50;
+
 const event = new Event("drawing-changed");
 
 canvas.addEventListener("mousedown", (e) => {
   cursorActive = true;
-  currentCommand = new LineCommand(e.offsetX, e.offsetY);
+  currentCommand = new LineCommand(
+    e.offsetX,
+    e.offsetY,
+    parseInt(widthSlide.value)
+  );
   commands.push(currentCommand);
   redoCommands.splice(0, redoCommands.length);
 
@@ -53,12 +59,14 @@ canvas.addEventListener("drawing-changed", () => {
 
 class LineCommand {
   points: { x: number; y: number }[];
-  constructor(x: number, y: number) {
+  thickness: number;
+  constructor(x: number, y: number, thickness: number) {
     this.points = [{ x, y }];
+    this.thickness = thickness;
   }
   display(ctx: CanvasRenderingContext2D) {
     ctx.strokeStyle = "black";
-    ctx.lineWidth = 4;
+    ctx.lineWidth = this.thickness;
     ctx.beginPath();
     const { x, y } = this.points[0];
     ctx.moveTo(x, y);
@@ -105,3 +113,18 @@ redoButton.addEventListener("click", () => {
     canvas.dispatchEvent(event);
   }
 });
+
+app.append(document.createElement("br"));
+app.append(document.createElement("br"));
+
+const widthSlide = document.createElement("input");
+widthSlide.type = "range";
+widthSlide.id = "widthSlide";
+widthSlide.min = "1";
+widthSlide.max = "10";
+widthSlide.value = "5";
+const label = document.createElement("label");
+label.htmlFor = "widthSlide";
+label.innerHTML = "Pen Thickness: ";
+app.append(label);
+app.append(widthSlide);
