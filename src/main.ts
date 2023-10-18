@@ -16,56 +16,61 @@ app.append(canvas);
 
 const ctx = canvas.getContext("2d")!;
 
-const lines: { x: number; y: number }[][] = [];
+const commands: LineCommand[] = [];
 
-const redoLines: { x: number; y: number }[][] = [];
+const redoCommands: LineCommand[] = [];
 
-let currentLine: { x: number; y: number }[] = [];
+let currentCommand: LineCommand | null = null;
 
-const cursor = { active: false, x: 0, y: 0 };
+let cursorActive = false;
 
 const event = new Event("drawing-changed");
 
 canvas.addEventListener("mousedown", (e) => {
-  cursor.active = true;
-  cursor.x = e.offsetX;
-  cursor.y = e.offsetY;
-  currentLine = [];
-  lines.push(currentLine);
-  redoLines.splice(0, redoLines.length);
-  currentLine.push({ x: cursor.x, y: cursor.y });
+  cursorActive = true;
+  currentCommand = new LineCommand(e.offsetX, e.offsetY);
+  commands.push(currentCommand);
+  redoCommands.splice(0, redoCommands.length);
 
   canvas.dispatchEvent(event);
 });
 
 canvas.addEventListener("mousemove", (e) => {
-  if (cursor.active) {
-    cursor.x = e.offsetX;
-    cursor.y = e.offsetY;
-    currentLine.push({ x: cursor.x, y: cursor.y });
-
+  if (cursorActive) {
+    currentCommand!.drag(e.offsetX, e.offsetY);
     canvas.dispatchEvent(event);
   }
 });
 
 canvas.addEventListener("mouseup", () => {
-  cursor.active = false;
+  cursorActive = false;
 });
 
 canvas.addEventListener("drawing-changed", () => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  for (const line of lines) {
-    if (line.length > 1) {
-      ctx.beginPath();
-      const { x, y } = line[0];
-      ctx.moveTo(x, y);
-      for (const { x, y } of line) {
-        ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-    }
-  }
+  commands.forEach((cmd) => cmd.display(ctx));
 });
+
+class LineCommand {
+  points: { x: number; y: number }[];
+  constructor(x: number, y: number) {
+    this.points = [{ x, y }];
+  }
+  display(ctx: CanvasRenderingContext2D) {
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    const { x, y } = this.points[0];
+    ctx.moveTo(x, y);
+    for (const { x, y } of this.points) {
+      ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  drag(x: number, y: number) {
+    this.points.push({ x, y });
+  }
+}
 
 app.append(document.createElement("br"));
 app.append(document.createElement("br"));
@@ -75,7 +80,7 @@ clearButton.innerHTML = "clear";
 app.append(clearButton);
 
 clearButton.addEventListener("click", () => {
-  lines.splice(0, lines.length);
+  commands.splice(0, commands.length);
   canvas.dispatchEvent(event);
 });
 
@@ -84,8 +89,8 @@ undoButton.innerHTML = "undo";
 app.append(undoButton);
 
 undoButton.addEventListener("click", () => {
-  if (lines.length > 0) {
-    redoLines.push(lines.pop()!);
+  if (commands.length > 0) {
+    redoCommands.push(commands.pop()!);
     canvas.dispatchEvent(event);
   }
 });
@@ -95,8 +100,8 @@ redoButton.innerHTML = "redo";
 app.append(redoButton);
 
 redoButton.addEventListener("click", () => {
-  if (redoLines.length > 0) {
-    lines.push(redoLines.pop()!);
+  if (redoCommands.length > 0) {
+    commands.push(redoCommands.pop()!);
     canvas.dispatchEvent(event);
   }
 });
