@@ -12,6 +12,7 @@ app.append(header);
 
 const canvas = document.createElement("canvas");
 canvas.width = canvas.height = 256;
+canvas.style.cursor = "none";
 app.append(canvas);
 
 const ctx = canvas.getContext("2d")!;
@@ -20,42 +21,25 @@ const commands: LineCommand[] = [];
 
 const redoCommands: LineCommand[] = [];
 
-let currentCommand: LineCommand | null = null;
+const bus = new EventTarget();
 
-let cursorActive = false;
+function notify(name: string) {
+  bus.dispatchEvent(new Event(name));
+}
 
-// let currentThickness = 50;
+let cursorCommand: CursorCommand | null = null;
 
-const event = new Event("drawing-changed");
-
-canvas.addEventListener("mousedown", (e) => {
-  cursorActive = true;
-  currentCommand = new LineCommand(
-    e.offsetX,
-    e.offsetY,
-    parseInt(widthSlide.value)
-  );
-  commands.push(currentCommand);
-  redoCommands.splice(0, redoCommands.length);
-
-  canvas.dispatchEvent(event);
-});
-
-canvas.addEventListener("mousemove", (e) => {
-  if (cursorActive) {
-    currentCommand!.drag(e.offsetX, e.offsetY);
-    canvas.dispatchEvent(event);
-  }
-});
-
-canvas.addEventListener("mouseup", () => {
-  cursorActive = false;
-});
-
-canvas.addEventListener("drawing-changed", () => {
+function redraw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   commands.forEach((cmd) => cmd.display(ctx));
-});
+
+  if (cursorCommand) {
+    cursorCommand.draw(ctx);
+  }
+}
+
+bus.addEventListener("drawing-changed", redraw);
+bus.addEventListener("cursor-changed", redraw);
 
 class LineCommand {
   points: { x: number; y: number }[];
@@ -80,6 +64,60 @@ class LineCommand {
   }
 }
 
+class CursorCommand {
+  x: number;
+  y: number;
+  constructor(x: number, y: number) {
+    this.x = x;
+    this.y = y;
+  }
+  draw(ctx: CanvasRenderingContext2D) {
+    ctx.font = `${parseInt(widthSlide.value) * 5 + 5}px monospace`;
+    ctx.textAlign = "center";
+    ctx.fillText(
+      "◦",
+      this.x,
+      this.y + 8 + (parseInt(widthSlide.value) - 5) * 1.5
+    );
+  }
+}
+let currentLineCommand: LineCommand | null = null;
+
+canvas.addEventListener("mouseenter", (e) => {
+  cursorCommand = new CursorCommand(e.offsetX, e.offsetY);
+  notify("cursor-changed");
+});
+
+canvas.addEventListener("mousedown", (e) => {
+  currentLineCommand = new LineCommand(
+    e.offsetX,
+    e.offsetY,
+    parseInt(widthSlide.value)
+  );
+  commands.push(currentLineCommand);
+  redoCommands.splice(0, redoCommands.length);
+  notify("drawing-changed");
+});
+
+canvas.addEventListener("mousemove", (e) => {
+  cursorCommand = new CursorCommand(e.offsetX, e.offsetY);
+  notify("cursor-changed");
+  if (e.buttons == 1) {
+    currentLineCommand!.drag(e.offsetX, e.offsetY);
+    notify("drawing-changed");
+  }
+});
+
+canvas.addEventListener("mouseup", () => {
+  currentLineCommand = null;
+  notify("drawing-changed");
+});
+
+canvas.addEventListener("mouseout", () => {
+  cursorCommand = null;
+  notify("cursor-changed");
+});
+
 app.append(document.createElement("br"));
 app.append(document.createElement("br"));
 
@@ -89,7 +127,7 @@ app.append(clearButton);
 
 clearButton.addEventListener("click", () => {
   commands.splice(0, commands.length);
-  canvas.dispatchEvent(event);
+  notify("drawing-changed");
 });
 
 const undoButton = document.createElement("button");
@@ -99,7 +137,7 @@ app.append(undoButton);
 undoButton.addEventListener("click", () => {
   if (commands.length > 0) {
     redoCommands.push(commands.pop()!);
-    canvas.dispatchEvent(event);
+    notify("drawing-changed");
   }
 });
 
@@ -110,7 +148,7 @@ app.append(redoButton);
 redoButton.addEventListener("click", () => {
   if (redoCommands.length > 0) {
     commands.push(redoCommands.pop()!);
-    canvas.dispatchEvent(event);
+    notify("drawing-changed");
   }
 });
 
