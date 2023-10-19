@@ -31,29 +31,37 @@ class CursorCommand {
   position: { x: number; y: number };
   active: boolean;
   sticker: string | null;
-  constructor(x: number, y: number, active: boolean, s: string | null) {
+  size: number;
+  constructor(
+    x: number,
+    y: number,
+    active: boolean,
+    s: string | null,
+    size: number
+  ) {
     this.position = { x, y };
     this.active = active;
     this.sticker = s;
+    this.size = size;
   }
   draw(ctx: CanvasRenderingContext2D) {
     if (!this.active) return;
     if (!this.sticker) {
-      ctx.font = `${parseInt(widthSlide.value) * 5 + 5}px monospace`;
+      ctx.font = `${this.size * 5 + 5}px monospace`;
       ctx.textAlign = "center";
       ctx.fillText(
         "◦",
         this.position.x,
-        this.position.y + 8 + (parseInt(widthSlide.value) - 5) * 1.5
+        this.position.y + 8 + (this.size - 5) * 1.5
       );
     } else {
-      ctx.font = `${parseInt(widthSlide.value) * 10}px monospace`;
+      ctx.font = `${this.size * 10}px monospace`;
       ctx.fillText(this.sticker, this.position.x, this.position.y);
     }
   }
 }
 
-const cursorCommand: CursorCommand = new CursorCommand(0, 0, false, null);
+const cursorCommand: CursorCommand = new CursorCommand(0, 0, false, null, 0);
 
 function redraw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -109,6 +117,7 @@ let currentCommand: LineCommand | StickerCommand | null = null;
 
 canvas.addEventListener("mouseenter", (e) => {
   cursorCommand.position = { x: e.offsetX, y: e.offsetY };
+  cursorCommand.size = parseInt(widthSlide.value);
   cursorCommand.active = true;
   notify("tool-moved");
 });
@@ -189,23 +198,42 @@ redoButton.addEventListener("click", () => {
 app.append(document.createElement("br"));
 app.append(document.createElement("br"));
 
+const toolButtons = document.createElement("div");
+app.append(toolButtons);
+
 const penButton = document.createElement("button");
 penButton.innerHTML = "Pen Tool";
-app.append(penButton);
+toolButtons.append(penButton);
 penButton.addEventListener("click", () => {
   cursorCommand.sticker = null;
 });
 
-const defaultStickers = ["🌴", "🌵", "☀️"];
+const stickers = ["🌴", "🌵", "☀️"];
+let stickerButtonCount = 0;
 
-defaultStickers.forEach((sticker) => {
-  const stickerButton = document.createElement("button");
-  stickerButton.innerHTML = sticker;
-  app.append(stickerButton);
-  stickerButton.addEventListener(
-    "click",
-    () => (cursorCommand.sticker = sticker)
-  );
+function addStickerButtons() {
+  for (; stickerButtonCount < stickers.length; stickerButtonCount++) {
+    const i = stickerButtonCount;
+    console.log(stickerButtonCount);
+    console.log(stickers[stickerButtonCount]);
+    const stickerButton = document.createElement("button");
+    stickerButton.innerHTML = stickers[stickerButtonCount];
+    toolButtons.append(stickerButton);
+    stickerButton.addEventListener("click", () => {
+      cursorCommand.sticker = stickers[i];
+      console.log(cursorCommand);
+    });
+  }
+}
+
+addStickerButtons();
+
+const customStickerButton = document.createElement("button");
+customStickerButton.innerHTML = "Add Sticker";
+app.append(customStickerButton);
+customStickerButton.addEventListener("click", () => {
+  stickers.push(prompt("Custom Sticker Text:", "🌙")!);
+  addStickerButtons();
 });
 
 app.append(document.createElement("br"));
@@ -222,3 +250,6 @@ label.htmlFor = "widthSlide";
 label.innerHTML = "Tool Size: ";
 app.append(label);
 app.append(widthSlide);
+
+app.append(document.createElement("br"));
+app.append(document.createElement("br"));
