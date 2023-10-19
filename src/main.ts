@@ -17,9 +17,9 @@ app.append(canvas);
 
 const ctx = canvas.getContext("2d")!;
 
-const commands: LineCommand[] = [];
+const commands: (LineCommand | StickerCommand)[] = [];
 
-const redoCommands: LineCommand[] = [];
+const redoCommands: (LineCommand | StickerCommand)[] = [];
 
 const bus = new EventTarget();
 
@@ -27,19 +27,42 @@ function notify(name: string) {
   bus.dispatchEvent(new Event(name));
 }
 
-let cursorCommand: CursorCommand | null = null;
+class CursorCommand {
+  position: { x: number; y: number };
+  active: boolean;
+  sticker: string | null;
+  constructor(x: number, y: number, active: boolean, s: string | null) {
+    this.position = { x, y };
+    this.active = active;
+    this.sticker = s;
+  }
+  draw(ctx: CanvasRenderingContext2D) {
+    if (!this.active) return;
+    if (!this.sticker) {
+      ctx.font = `${parseInt(widthSlide.value) * 5 + 5}px monospace`;
+      ctx.textAlign = "center";
+      ctx.fillText(
+        "◦",
+        this.position.x,
+        this.position.y + 8 + (parseInt(widthSlide.value) - 5) * 1.5
+      );
+    } else {
+      ctx.font = `${parseInt(widthSlide.value) * 10}px monospace`;
+      ctx.fillText(this.sticker, this.position.x, this.position.y);
+    }
+  }
+}
+
+const cursorCommand: CursorCommand = new CursorCommand(0, 0, false, null);
 
 function redraw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   commands.forEach((cmd) => cmd.display(ctx));
-
-  if (cursorCommand) {
-    cursorCommand.draw(ctx);
-  }
+  cursorCommand.draw(ctx);
 }
 
 bus.addEventListener("drawing-changed", redraw);
-bus.addEventListener("cursor-changed", redraw);
+bus.addEventListener("tool-moved", redraw);
 
 class LineCommand {
   points: { x: number; y: number }[];
@@ -64,58 +87,69 @@ class LineCommand {
   }
 }
 
-class CursorCommand {
-  x: number;
-  y: number;
-  constructor(x: number, y: number) {
-    this.x = x;
-    this.y = y;
+class StickerCommand {
+  position: { x: number; y: number };
+  sticker: string;
+  size: number;
+  constructor(x: number, y: number, s: string, size: number) {
+    this.position = { x, y };
+    this.sticker = s;
+    this.size = size;
   }
-  draw(ctx: CanvasRenderingContext2D) {
-    ctx.font = `${parseInt(widthSlide.value) * 5 + 5}px monospace`;
-    ctx.textAlign = "center";
-    ctx.fillText(
-      "◦",
-      this.x,
-      this.y + 8 + (parseInt(widthSlide.value) - 5) * 1.5
-    );
+  display(ctx: CanvasRenderingContext2D) {
+    ctx.font = `${this.size * 10}px monospace`;
+    ctx.fillText(this.sticker, this.position.x, this.position.y);
+  }
+  drag(x: number, y: number) {
+    this.position = { x: x, y: y };
   }
 }
-let currentLineCommand: LineCommand | null = null;
+
+let currentCommand: LineCommand | StickerCommand | null = null;
 
 canvas.addEventListener("mouseenter", (e) => {
-  cursorCommand = new CursorCommand(e.offsetX, e.offsetY);
-  notify("cursor-changed");
+  cursorCommand.position = { x: e.offsetX, y: e.offsetY };
+  cursorCommand.active = true;
+  notify("tool-moved");
 });
 
 canvas.addEventListener("mousedown", (e) => {
-  currentLineCommand = new LineCommand(
-    e.offsetX,
-    e.offsetY,
-    parseInt(widthSlide.value)
-  );
-  commands.push(currentLineCommand);
+  if (cursorCommand.sticker == null) {
+    currentCommand = new LineCommand(
+      e.offsetX,
+      e.offsetY,
+      parseInt(widthSlide.value)
+    );
+  } else {
+    currentCommand = new StickerCommand(
+      e.offsetX,
+      e.offsetY,
+      cursorCommand.sticker,
+      parseInt(widthSlide.value)
+    );
+  }
+  commands.push(currentCommand);
   redoCommands.splice(0, redoCommands.length);
   notify("drawing-changed");
 });
 
 canvas.addEventListener("mousemove", (e) => {
-  cursorCommand = new CursorCommand(e.offsetX, e.offsetY);
-  notify("cursor-changed");
+  cursorCommand.position = { x: e.offsetX, y: e.offsetY };
+  notify("tool-moved");
   if (e.buttons == 1) {
-    currentLineCommand!.drag(e.offsetX, e.offsetY);
+    currentCommand!.drag(e.offsetX, e.offsetY);
     notify("drawing-changed");
   }
 });
 
 canvas.addEventListener("mouseup", () => {
-  currentLineCommand = null;
+  currentCommand = null;
   notify("drawing-changed");
 });
 
 canvas.addEventListener("mouseout", () => {
-  cursorCommand = null;
-  notify("cursor-changed");
+  cursorCommand.active = false;
+  notify("tool-moved");
 });
 
 app.append(document.createElement("br"));
@@ -155,6 +189,28 @@ redoButton.addEventListener("click", () => {
 app.append(document.createElement("br"));
 app.append(document.createElement("br"));
 
+const penButton = document.createElement("button");
+penButton.innerHTML = "Pen Tool";
+app.append(penButton);
+penButton.addEventListener("click", () => {
+  cursorCommand.sticker = null;
+});
+
+const defaultStickers = ["🌴", "🌵", "☀️"];
+
+defaultStickers.forEach((sticker) => {
+  const stickerButton = document.createElement("button");
+  stickerButton.innerHTML = sticker;
+  app.append(stickerButton);
+  stickerButton.addEventListener(
+    "click",
+    () => (cursorCommand.sticker = sticker)
+  );
+});
+
+app.append(document.createElement("br"));
+app.append(document.createElement("br"));
+
 const widthSlide = document.createElement("input");
 widthSlide.type = "range";
 widthSlide.id = "widthSlide";
@@ -163,6 +219,6 @@ widthSlide.max = "10";
 widthSlide.value = "5";
 const label = document.createElement("label");
 label.htmlFor = "widthSlide";
-label.innerHTML = "Pen Thickness: ";
+label.innerHTML = "Tool Size: ";
 app.append(label);
 app.append(widthSlide);
