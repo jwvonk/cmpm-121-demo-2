@@ -16,6 +16,8 @@ canvas.style.cursor = "none";
 app.append(canvas);
 
 const ctx = canvas.getContext("2d")!;
+ctx.textAlign = "center";
+ctx.textBaseline = "middle";
 
 const commands: (LineCommand | StickerCommand)[] = [];
 
@@ -48,14 +50,10 @@ class CursorCommand {
     if (!this.active) return;
     if (!this.sticker) {
       ctx.font = `${this.size * 5 + 5}px monospace`;
-      ctx.textAlign = "center";
-      ctx.fillText(
-        "◦",
-        this.position.x,
-        this.position.y + 8 + (this.size - 5) * 1.5
-      );
+      ctx.fillText("◦", this.position.x, this.position.y);
     } else {
       ctx.font = `${this.size * 10}px monospace`;
+
       ctx.fillText(this.sticker, this.position.x, this.position.y);
     }
   }
@@ -75,12 +73,11 @@ bus.addEventListener("tool-moved", redraw);
 class LineCommand {
   points: { x: number; y: number }[];
   thickness: number;
-  constructor(x: number, y: number, thickness: number) {
+  constructor(x: number, y: number, t: number) {
     this.points = [{ x, y }];
-    this.thickness = thickness;
+    this.thickness = t;
   }
   display(ctx: CanvasRenderingContext2D) {
-    ctx.strokeStyle = "black";
     ctx.lineWidth = this.thickness;
     ctx.beginPath();
     const { x, y } = this.points[0];
@@ -106,7 +103,6 @@ class StickerCommand {
   }
   display(ctx: CanvasRenderingContext2D) {
     ctx.font = `${this.size * 10}px monospace`;
-    ctx.textAlign = "center";
     ctx.fillText(this.sticker, this.position.x, this.position.y);
   }
   drag(x: number, y: number) {
@@ -246,10 +242,10 @@ widthSlide.id = "widthSlide";
 widthSlide.min = "1";
 widthSlide.max = "10";
 widthSlide.value = "5";
-const label = document.createElement("label");
-label.htmlFor = "widthSlide";
-label.innerHTML = "Tool Size: ";
-app.append(label);
+const widthLabel = document.createElement("label");
+widthLabel.htmlFor = "widthSlide";
+widthLabel.innerHTML = "Pen/Sticker Size: ";
+app.append(widthLabel);
 app.append(widthSlide);
 
 app.append(document.createElement("br"));
