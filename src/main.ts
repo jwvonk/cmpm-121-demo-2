@@ -106,6 +106,7 @@ class StickerCommand {
   }
   display(ctx: CanvasRenderingContext2D) {
     ctx.font = `${this.size * 10}px monospace`;
+    ctx.textAlign = "center";
     ctx.fillText(this.sticker, this.position.x, this.position.y);
   }
   drag(x: number, y: number) {
@@ -253,3 +254,19 @@ app.append(widthSlide);
 
 app.append(document.createElement("br"));
 app.append(document.createElement("br"));
+
+const exportButton = document.createElement("button");
+exportButton.innerHTML = "Export";
+app.append(exportButton);
+exportButton.addEventListener("click", () => {
+  const tmpCanvas = document.createElement("canvas");
+  tmpCanvas.width = tmpCanvas.height = 1024;
+  const expCtx = tmpCanvas.getContext("2d")!;
+  expCtx.scale(4, 4);
+  commands.forEach((cmd) => cmd.display(expCtx));
+
+  const anchor = document.createElement("a");
+  anchor.href = tmpCanvas.toDataURL("image/png");
+  anchor.download = "sketchpad.png";
+  anchor.click();
+});
