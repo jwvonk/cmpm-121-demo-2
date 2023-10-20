@@ -73,11 +73,14 @@ bus.addEventListener("tool-moved", redraw);
 class LineCommand {
   points: { x: number; y: number }[];
   thickness: number;
-  constructor(x: number, y: number, t: number) {
+  color: string;
+  constructor(x: number, y: number, t: number, c: string) {
     this.points = [{ x, y }];
     this.thickness = t;
+    this.color = c;
   }
   display(ctx: CanvasRenderingContext2D) {
+    ctx.strokeStyle = this.color;
     ctx.lineWidth = this.thickness;
     ctx.beginPath();
     const { x, y } = this.points[0];
@@ -124,7 +127,8 @@ canvas.addEventListener("mousedown", (e) => {
     currentCommand = new LineCommand(
       e.offsetX,
       e.offsetY,
-      parseInt(widthSlide.value)
+      parseInt(widthSlide.value),
+      colorPicker.value
     );
   } else {
     currentCommand = new StickerCommand(
@@ -247,6 +251,15 @@ widthLabel.htmlFor = "widthSlide";
 widthLabel.innerHTML = "Pen/Sticker Size: ";
 app.append(widthLabel);
 app.append(widthSlide);
+
+const colorPicker = document.createElement("input");
+colorPicker.type = "color";
+colorPicker.id = "colorPicker";
+const colorLabel = document.createElement("label");
+colorLabel.htmlFor = "colorPicker";
+colorLabel.innerHTML = " Pen Color: ";
+app.append(colorLabel);
+app.append(colorPicker);
 
 app.append(document.createElement("br"));
 app.append(document.createElement("br"));
