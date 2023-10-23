@@ -215,14 +215,11 @@ let stickerButtonCount = 0;
 function addStickerButtons() {
   for (; stickerButtonCount < stickers.length; stickerButtonCount++) {
     const i = stickerButtonCount;
-    console.log(stickerButtonCount);
-    console.log(stickers[stickerButtonCount]);
     const stickerButton = document.createElement("button");
     stickerButton.innerHTML = stickers[stickerButtonCount];
     toolButtons.append(stickerButton);
     stickerButton.addEventListener("click", () => {
       cursorCommand.sticker = stickers[i];
-      console.log(cursorCommand);
     });
   }
 }
